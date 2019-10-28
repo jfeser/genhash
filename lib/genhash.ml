@@ -1,25 +1,31 @@
 open! Core
 
-type t = { a : Int64.t; log_bins : int } [@@deriving compare, sexp]
+type t = { a : int; b : int; log_bins : int } [@@deriving compare, sexp]
 
-let hash { a; log_bins } v = Int64.((a * v) lsr Int.(64 - log_bins))
+let hash { a; b; log_bins } v = ((a * v) + b) lsr (63 - log_bins)
 
 let gen_multiply_shift ?(max_time = Time.Span.millisecond) ?(seed = 0) keys =
   let rand = Random.State.make [| seed |] in
   let log_bins = Int.ceil_log2 (List.length keys) in
   let nbins = Int.(2 ** log_bins) in
+  let max_b = Int.(2 ** (63 - nbins)) in
   let collider = Array.create ~len:nbins 0 in
   let start_time = Time.now () in
   let rec loop () =
     if Time.diff (Time.now ()) start_time > max_time then None
     else
-      let a = Random.State.int64 rand Int64.max_value in
-      let a = Int64.(if rem a 2L = 0L then a + 1L else a) in
-      let h = { a; log_bins } in
+      let a = Random.State.int rand Int.max_value in
+      let a = if a mod 2 = 0 then a + 1 else a in
+      let b = Random.State.int rand max_b in
+      let h = { a; b; log_bins } in
       let rec any_collide = function
         | [] -> false
         | k :: ks ->
-            let v = hash h k |> Int64.to_int_exn in
+            let v = hash h k in
+            if v < 0 || v >= nbins then
+              failwith
+                (sprintf "Bad hash value: a=%d, b=%d, m=%d, k=%d, v=%d" a b
+                   log_bins k v);
             if collider.(v) > 0 then true
             else (
               collider.(v) <- 1;
@@ -33,6 +39,6 @@ let gen_multiply_shift ?(max_time = Time.Span.millisecond) ?(seed = 0) keys =
   loop ()
 
 let%expect_test "" =
-  gen_multiply_shift [ 1L; 2L; 3L; 4L; 5L; 6L; 7L; 8L; 9L; 10L ]
+  gen_multiply_shift [ 1; 2; 3; 4; 5; 6; 7; 8; 9; 10 ]
   |> [%sexp_of: t option] |> print_s;
-  [%expect {| (((a 2497643567980153265) (log_bins 4))) |}]
+  [%expect {| (((a 2497643567980153265) (b 78436873956136) (log_bins 4))) |}]
