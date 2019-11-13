@@ -4,9 +4,11 @@ type t = { a : int; b : int; log_bins : int } [@@deriving compare, sexp]
 
 let hash { a; b; log_bins } v = ((a * v) + b) lsr (63 - log_bins)
 
-let gen_multiply_shift ?(max_time = Time.Span.millisecond) ?(seed = 0) keys =
+let gen_hash ?(max_time = Time.Span.millisecond) ?(seed = 0) ?log_bins keys =
   let rand = Random.State.make [| seed |] in
-  let log_bins = Int.ceil_log2 (List.length keys) in
+  let log_bins =
+    match log_bins with Some n -> n | None -> Int.ceil_log2 (List.length keys)
+  in
   let nbins = Int.(2 ** log_bins) in
   let max_b = Int.(2 ** (63 - log_bins)) in
   let collider = Array.create ~len:nbins 0 in
@@ -38,13 +40,24 @@ let gen_multiply_shift ?(max_time = Time.Span.millisecond) ?(seed = 0) keys =
   in
   loop ()
 
+let search_hash ?seed ?max_time keys =
+  let rec search log_bins =
+    match gen_hash ?seed ?max_time ~log_bins keys with
+    | Some h -> h
+    | None -> search (log_bins + 1)
+  in
+  search (Int.ceil_log2 (List.length keys))
+
 let%expect_test "" =
-  gen_multiply_shift [ 1; 2; 3; 4; 5; 6; 7; 8; 9; 10 ]
-  |> [%sexp_of: t option] |> print_s;
+  gen_hash [ 1; 2; 3; 4; 5; 6; 7; 8; 9; 10 ] |> [%sexp_of: t option] |> print_s;
   [%expect
     {| (((a 2497643567980153265) (b 541917767041968936) (log_bins 4))) |}]
 
 let%expect_test "" =
-  gen_multiply_shift (List.init 100 ~f:Fun.id)
+  gen_hash (List.init 100 ~f:Fun.id) |> [%sexp_of: t option] |> print_s;
+  [%expect {| (((a 3849860515398355207) (b 69325505536368030) (log_bins 7))) |}]
+
+let%expect_test "" =
+  gen_hash ~max_time:Time.Span.minute (List.init 10000000 ~f:Fun.id)
   |> [%sexp_of: t option] |> print_s;
   [%expect {| (((a 3849860515398355207) (b 69325505536368030) (log_bins 7))) |}]
