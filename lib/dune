@@ -1,5 +1,5 @@
 (library
  (public_name genhash)
- (libraries core)
+ (libraries core integers)
  (preprocess (pps ppx_sexp_conv ppx_compare ppx_expect))
- (inline_tests))
+ (inline_tests (modes byte) (flags (-verbose))))
