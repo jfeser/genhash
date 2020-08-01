@@ -2,4 +2,4 @@
  (public_name genhash)
  (libraries core integers)
  (preprocess (pps ppx_sexp_conv ppx_compare ppx_expect))
- (inline_tests (modes byte) (flags (-verbose))))
+ (inline_tests))
