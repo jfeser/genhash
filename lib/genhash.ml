@@ -39,11 +39,11 @@ let gen_hash ?(max_time = Time.Span.millisecond) ?(seed = 0) ?log_bins keys =
             if collider.(v) > 0 then true
             else (
               collider.(v) <- 1;
-              any_collide ks )
+              any_collide ks)
       in
       if any_collide keys then (
         Array.fill collider ~pos:0 ~len:nbins 0;
-        loop () )
+        loop ())
       else Some h
   in
   loop ()
@@ -62,10 +62,10 @@ let%expect_test "" =
     {| (((a 3341259039328860149) (b 246399585519049361) (log_bins 4))) |}]
 
 let%expect_test "" =
-  gen_hash (List.init 100 ~f:Fun.id) |> [%sexp_of: t option] |> print_s;
+  gen_hash (List.init 100 ~f:Fn.id) |> [%sexp_of: t option] |> print_s;
   [%expect {| (((a 3849860515398355207) (b 69325505536368030) (log_bins 7))) |}]
 
 let%expect_test "" =
-  gen_hash ~max_time:Time.Span.second (List.init 1000 ~f:Fun.id)
+  gen_hash ~max_time:Time.Span.second (List.init 1000 ~f:Fn.id)
   |> [%sexp_of: t option] |> print_s;
   [%expect {| (((a 461625378747127019) (b 3649080310458621) (log_bins 10))) |}]
